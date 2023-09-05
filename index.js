@@ -22,11 +22,12 @@ createInput('Quantization:', 'number', quantization, document.body, newValue => 
     quantization = Number(newValue);
     localStorage.setItem('quantization', quantization.toString());
     setTimeout(update, 500);
-}, { min: 2, max: 20 });
+}, { min: 2, max: 2000 });
 
 let offset = LV2.fromJSON(localStorage.getItem('offset') || new LV2(0, 0).toJSON());
 createLV2Input('Offset:', offset, document.body, (v) => {
     offset = v;
+    localStorage.setItem('offset', offset.toJSON().toString());
     setTimeout(update, 500);
 });
 
@@ -34,6 +35,14 @@ createLV2Input('Offset:', offset, document.body, (v) => {
 let scale = Number(localStorage.getItem('scale') || 1);
 createInput('Scale:', 'number', scale, document.body, (v) => {
     scale = v;
+    localStorage.setItem('scale', scale.toString());
+    setTimeout(update, 500);
+});
+
+let showIndices = JSON.parse(localStorage.getItem('showIndices') || 'false');
+createInput('Draw Indices:', 'boolean', showIndices, document.body, (v) => {
+    showIndices = v;
+    localStorage.setItem('showIndices', showIndices.toString());
     setTimeout(update, 500);
 });
 
@@ -52,7 +61,7 @@ function update() {
     pathOutputEl.appendChild(container);
     try {
         const path = compilePath(rawString);
-        const ptsTmp = computePoints(path, 10);
+        const ptsTmp = computePoints(path, quantization);
         let pts = [];
         while (ptsTmp.length > 2) {
             const lastIndex = ptsTmp.length - 1;
@@ -118,12 +127,14 @@ function update() {
             ctx.stroke();
 
 
-            for (let i = 0; i < pts.length; i++) {
-                const p = tp(pts[i]);
-                ctx.fillStyle = 'green';
-                ctx.font = '50px serif';
-                const offset = 10;
-                ctx.fillText(`${i}.`, p.x, p.y + offset);
+            if (showIndices) {
+                for (let i = 0; i < pts.length; i++) {
+                    const p = tp(pts[i]);
+                    ctx.fillStyle = 'green';
+                    ctx.font = '50px serif';
+                    const offset = 10;
+                    ctx.fillText(`${i}.`, p.x, p.y + offset);
+                }
             }
 
 
@@ -191,11 +202,15 @@ function createInput(label, type, defaultValue, container, onInput, settings) {
             if (settings.min != null) inputEl.min = settings.min;
             if (settings.max != null) inputEl.max = settings.max;
         }
+    } else if (type === 'boolean') {
+        inputEl.type = 'checkbox';
     }
-    inputEl.value = defaultValue;
+    if (type === 'boolean') inputEl.checked = defaultValue;
+    else inputEl.value = defaultValue;
     inputEl.oninput = () => {
         const raw = inputEl.value;
         if (type === 'number') onInput(Number(raw));
+        else if (type === 'boolean') onInput(inputEl.checked);
         else onInput(raw);
     };
     container.appendChild(inputEl);
